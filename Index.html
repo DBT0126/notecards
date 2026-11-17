@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3x5 Notecard Maker</title>
+<style>
+  :root {
+    --bg: #f4f4f4;
+    --panel: #ffffff;
+    --border: #ccc;
+    --accent: #2b6cb0;
+    --text: #222;
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    background: var(--bg);
+    color: var(--text);
+  }
+  header {
+    background: var(--accent);
+    color: white;
+    padding: 12px 20px;
+  }
+  header h1 { margin: 0; font-size: 20px; }
+  header p { margin: 4px 0 0; font-size: 13px; opacity: 0.9; }
+  .layout {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    padding: 16px;
+    max-width: 1400px;
+    margin: 0 auto;
+  }
+  @media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+  .panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 14px;
+  }
+  .panel h2 {
+    margin: 0 0 10px;
+    font-size: 15px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #555;
+  }
+  textarea {
+    width: 100%;
+    height: 200px;
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 13px;
+    padding: 10px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    resize: vertical;
+  }
+  .controls {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    align-items: center;
+    margin: 8px 0;
+    font-size: 13px;
+  }
+  .controls label { display: flex; align-items: center; gap: 5px; }
+  input[type="text"], select {
+    padding: 5px 8px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    font-size: 13px;
+  }
+  button {
+    background: var(--accent);
+    color: white;
+    border: none;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 13px;
+    cursor: pointer;
+  }
+  button:hover { background: #22548a; }
+  button.secondary { background: #666; }
+  button.secondary:hover { background: #4d4d4d; }
+  button.tertiary { background: #2f855a; }
+  button.tertiary:hover { background: #276749; }
+  button.warn { background: #b7791f; }
+  button.warn:hover { background: #975a16; }
+  button.small { padding: 5px 10px; font-size: 12px; }
+  .card-count { font-size: 13px; color: #666; margin-top: 4px; }
+  fieldset {
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 6px 10px 8px;
+    margin: 8px 0;
+    font-size: 13px;
+  }
+  legend { font-weight: 600; padding: 0 4px; color: #555; }
+  .hint { font-size: 11px; color: #888; margin-left: 4px; }
+  .session-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+    align-items: center;
+    margin-top: 6px;
+  }
+  #sessionStatus {
+    font-size: 12px;
+    color: #2f855a;
+    min-height: 16px;
+  }
+  #sessionStatus.error { color: #c53030; }
+
+  /* Preview grid */
+  #cardGrid {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    max-height: 540px;
+    overflow-y: auto;
+    padding: 4px;
+  }
+  .card {
+    width: 300px;
+    height: 180px;
+    border: 1px solid #999;
+    border-radius: 4px;
+    padding: 10px;
+    background: #fffdf5;
+    font-size: 12px;
+    overflow: hidden;
+    position: relative;
+    white-space: pre-wrap;
+    word-wrap: break-word;
+  }
+  .card .num {
+    position: absolute;
+    bottom: 4px;
+    right: 6px;
+    font-size: 9px;
+    color: #aaa;
+  }
+  .card .front { font-weight: 600; }
+  .card .back {
+    margin-top: 6px;
+    border-top: 1px dashed #ccc;
+    padding-top: 6px;
+    color: #444;
+  }
+
+  /* ---------- PRINT ---------- */
+  @media print {
+    body { background: white; margin: 0; }
+    header, .layout, .controls, textarea, h2, .card-count, button, fieldset { display: none !important; }
+    #printArea { display: block !important; }
+
+    .print-page {
+      page-break-after: always;
+      overflow: hidden;
+      position: relative;
+    }
+    .print-page:last-child { page-break-after: auto; }
+    .print-page.letter { width: 8.5in; height: 11in; }
+    .print-page.a4     { width: 8.27in; height: 11.69in; }
+
+    .print-header {
+      font-size: 8pt;
+      color: #777;
+      text-align: center;
+      border-bottom: 1px dotted #ccc;
+      padding: 0.05in 0;
+      margin-bottom: 0.05in;
+      height: 0.28in;
+      line-height: 0.18in;
+      font-family: ui-monospace, Menlo, monospace;
+    }
+
+    .print-card {
+      border: 1px dashed #bbb;
+      padding: 0.10in;
+      float: left;
+      margin: 0;
+      page-break-inside: avoid;
+      overflow: hidden;
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      position: relative;
+      background: white;
+    }
+    .print-card .pnum {
+      position: absolute;
+      bottom: 0.03in;
+      right: 0.06in;
+      font-size: 7pt;
+      color: #999;
+    }
+    .print-card .pnum-pair {
+      position: absolute;
+      bottom: 0.03in;
+      left: 0.06in;
+      font-size: 6pt;
+      color: #bbb;
+    }
+    .test-banner {
+      width: 100%;
+      background: #fff3cd;
+      color: #8a6d3b;
+      border-bottom: 1px solid #ffe08a;
+      font-size: 9pt;
+      text-align: center;
+      padding: 0.08in;
+      font-weight: 600;
+      font-family: ui-monospace, Menlo, monospace;
+    }
+
+    .layout-6 .print-card { width: 3in; height: 5in; font-size: 11pt; }
+    .layout-9 .print-card { width: 3in; height: 3.33in; font-size: 10pt; }
+    .layout-12 .print-card { width: 3in; height: 2.5in; font-size: 9pt; }
+  }
+  #printArea { display: none; }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>3×5 Notecard Maker</h1>
+  <p>Paste notes → split into cards → preview → print or export CSV. Fully offline.</p>
+</header>
+
+<div class="layout">
+  <!-- LEFT: Input -->
+  <div class="panel">
+    <h2>1. Your Notes</h2>
+    <textarea id="notes" placeholder="Paste your notes here...
+
+Example:
+Photosynthesis
+Plants convert light energy into chemical energy.
+
+Mitochondria
+The powerhouse of the cell.
+
+Or use --- between cards."></textarea>
+
+    <div class="controls">
+      <label>Split by:
+        <select id="splitMode">
+          <option value="blank">Blank line</option>
+          <option value="line">Each line</option>
+          <option value="custom">Custom delimiter</option>
+        </select>
+      </label>
+      <input type="text" id="customDelim" placeholder="e.g. ---" style="width:90px; display:none;">
+    </div>
+
+    <div class="controls">
+      <label><input type="checkbox" id="splitFrontBack"> Split each card into front/back (first line = front)</label>
+    </div>
+
+    <fieldset>
+      <legend>Paper &amp; layout</legend>
+      <div class="controls" style="margin:4px 0;">
+        <label>Paper size:
+          <select id="paperSize">
+            <option value="letter" selected>Letter (8.5×11)</option>
+            <option value="a4">A4 (8.27×11.69)</option>
+          </select>
+        </label>
+      </div>
+      <div class="controls" style="margin:4px 0;">
+        <label>Cards per sheet:
+          <select id="cardsPerSheet">
+            <option value="6" selected>6-up (3″×5″)</option>
+            <option value="9">9-up (3″×3.33″)</option>
+            <option value="12">12-up (3″×2.5″)</option>
+          </select>
+        </label>
+      </div>
+    </fieldset>
+
+    <fieldset>
+      <legend>Print mode</legend>
+      <div class="controls" style="margin:4px 0;">
+        <label><input type="radio" name="printMode" value="single" checked>
+          Single-sided (all content on front)
+        </label>
+      </div>
+      <div class="controls" style="margin:4px 0;">
+        <label><input type="radio" name="printMode" value="duplex">
+          Double-sided (fronts &amp; backs)
+        </label>
+        <span class="hint">~half the paper</span>
+      </div>
+      <div class="controls" style="margin:4px 0;">
+        <label><input type="checkbox" id="includeFrontsOnBack" disabled>
+          Also show front text on the back (reference copy)
+        </label>
+      </div>
+      <div class="controls" style="margin:4px 0;">
+        <label><input type="checkbox" id="manualDuplex" disabled>
+          Manual duplex (I'll flip the paper myself)
+        </label>
+      </div>
+      <div class="controls" style="margin:4px 0;">
+        <label><input type="checkbox" id="showPageInfo" checked>
+          Show page/sheet header &amp; card numbers
+        </label>
+      </div>
+    </fieldset>
+
+    <div class="controls">
+      <button id="buildBtn">Build Cards</button>
+      <button id="printBtn" class="secondary">Print All</button>
+      <button id="testPrintBtn" class="warn" title="Print just sheet 1 so you can verify alignment before using paper on the rest">Test Print (Sheet 1)</button>
+      <button id="csvBtn" class="tertiary">Export CSV</button>
+    </div>
+
+    <div class="card-count" id="count"></div>
+    <div class="card-count" id="paperEstimate"></div>
+
+    <fieldset>
+      <legend>Session (save/load)</legend>
+      <div class="session-row">
+        <button id="saveNowBtn" class="small">Save now</button>
+        <button id="exportSessionBtn" class="small secondary">Export session file…</button>
+        <button id="importSessionBtn" class="small secondary">Import session file…</button>
+        <button id="clearSessionBtn" class="small secondary" title="Clears saved session from this browser">Clear</button>
+        <input type="file" id="importFile" accept=".json,application/json" style="display:none;">
+      </div>
+      <div class="session-row">
+        <label class="hint" style="font-size:12px; color:#555;">
+          <input type="checkbox" id="autoSave" checked>
+          Auto-save notes &amp; settings to this browser
+        </label>
+      </div>
+      <div id="sessionStatus"></div>
+    </fieldset>
+  </div>
+
+  <!-- RIGHT: Preview -->
+  <div class="panel">
+    <h2>2. Card Preview</h2>
+    <div id="cardGrid"></div>
+  </div>
+</div>
+
+<div id="printArea"></div>
+
+<script>
+(function () {
+  const notesEl      = document.getElementById('notes');
+  const splitModeEl  = document.getElementById('splitMode');
+  const customDelim  = document.getElementById('customDelim');
+  const frontBackEl  = document.getElementById('splitFrontBack');
+  const cardGrid     = document.getElementById('cardGrid');
+  const countEl      = document.getElementById('count');
+  const paperEstEl   = document.getElementById('paperEstimate');
+  const printArea    = document.getElementById('printArea');
+  const printModeEls = document.querySelectorAll('input[name="printMode"]');
+  const includeFrontsOnBack = document.getElementById('includeFrontsOnBack');
+  const manualDuplexEl = document.getElementById('manualDuplex');
+  const paperSizeEl  = document.getElementById('paperSize');
+  const cardsPerSheetEl = document.getElementById('cardsPerSheet');
+  const showPageInfoEl = document.getElementById('showPageInfo');
+  const autoSaveEl   = document.getElementById('autoSave');
+  const sessionStatus = document.getElementById('sessionStatus');
+  const importFile   = document.getElementById('importFile');
+
+  let cards = []; // {front, back}
+
+  const STORAGE_KEY = 'notecard-maker-session-v1';
+
+  // ---------- helpers ----------
+  function currentPrintMode() {
+    let v = 'single';
+    printModeEls.forEach(r => { if (r.checked) v = r.value; });
+    return v;
+  }
+  function setPrintMode(v) {
+    printModeEls.forEach(r => { r.checked = (r.value === v); });
+  }
+  function cardsPerSheet() { return parseInt(cardsPerSheetEl.value, 10); }
+  function paperSize() { return paperSizeEl.value; }
+  function escapeHtml(s) {
+    return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function flashSession(msg, isError) {
+    sessionStatus.textContent = msg;
+    sessionStatus.classList.toggle('error', !!isError);
+    clearTimeout(flashSession._t);
+    flashSession._t = setTimeout(() => { sessionStatus.textContent = ''; }, 3000);
+  }
+
+  // ---------- session save/load ----------
+  function gatherSession() {
+    return {
+      version: 1,
+      savedAt: new Date().toISOString(),
+      notes: notesEl.value,
+      settings: {
+        splitMode: splitModeEl.value,
+        customDelim: customDelim.value,
+        splitFrontBack: frontBackEl.checked,
+        paperSize: paperSizeEl.value,
+        cardsPerSheet: cardsPerSheetEl.value,
+        printMode: currentPrintMode(),
+        includeFrontsOnBack: includeFrontsOnBack.checked,
+        manualDuplex: manualDuplexEl.checked,
+        showPageInfo: showPageInfoEl.checked,
+        autoSave: autoSaveEl.checked
+      }
+    };
+  }
+
+  function applySession(data) {
+    if (!data || typeof data !== 'object') throw new Error('Invalid session data');
+    if (typeof data.notes === 'string') notesEl.value = data.notes;
+    const s = data.settings || {};
+    if (s.splitMode) splitModeEl.value = s.splitMode;
+    if (typeof s.customDelim === 'string') customDelim.value = s.customDelim;
+    if (typeof s.splitFrontBack === 'boolean') frontBackEl.checked = s.splitFrontBack;
+    if (s.paperSize) paperSizeEl.value = s.paperSize;
+    if (s.cardsPerSheet) cardsPerSheetEl.value = s.cardsPerSheet;
+    if (s.printMode) setPrintMode(s.printMode);
+    if (typeof s.includeFrontsOnBack === 'boolean') includeFrontsOnBack.checked = s.includeFrontsOnBack;
+    if (typeof s.manualDuplex === 'boolean') manualDuplexEl.checked = s.manualDuplex;
+    if (typeof s.showPageInfo === 'boolean') showPageInfoEl.checked = s.showPageInfo;
+    if (typeof s.autoSave === 'boolean') autoSaveEl.checked = s.autoSave;
+    customDelim.style.display = splitModeEl.value === 'custom' ? 'inline-block' : 'none';
+    syncModeUI();
+    buildCards();
+  }
+
+  function saveToStorage() {
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(gatherSession()));
+      flashSession('Session saved to this browser.');
+      return true;
+    } catch (e) {
+      flashSession('Could not save to browser storage: ' + e.message, true);
+      return false;
+    }
+  }
+
+  function loadFromStorage() {
+    try {
+      const raw = localStorage.getItem(STORAGE_KEY);
+      if (!raw) return false;
+      applySession(JSON.parse(raw));
+      return true;
+    } catch (e) {
+      flashSession('Could not load saved session: ' + e.message, true);
+      return false;
+    }
+  }
+
+  function exportSessionFile() {
+    const data = gatherSession();
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = 'notecards-session-' + stamp + '.json';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    flashSession('Session file exported.');
+  }
+
+  function importSessionFile(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const data = JSON.parse(reader.result);
+        applySession(data);
+        if (autoSaveEl.checked) saveToStorage();
+        flashSession('Session imported from file.');
+      } catch (e) {
+        flashSession('Import failed: ' + e.message, true);
+      }
+    };
+    reader.onerror = () => flashSession('Import failed: could not read file.', true);
+    reader.readAsText(file);
+  }
+
+  let saveTimer = null;
+  function scheduleAutoSave() {
+    if (!autoSaveEl.checked) return;
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(saveToStorage, 400);
+  }
+
+  // ---------- splitting ----------
+  function splitNotes(text) {
+    const mode = splitModeEl.value;
+    let parts;
+    if (mode === 'blank') {
+      parts = text.split(/\n\s*\n/);
+    } else if (mode === 'line') {
+      parts = text.split(/\r?\n/);
+    } else {
+      const d = customDelim.value || '\n\n';
+      parts = text.split(d);
+    }
+    return parts.map(p => p.trim()).filter(p => p.length > 0);
+  }
+
+  function buildCards() {
+    const raw = notesEl.value;
+    if (!raw.trim()) { cards = []; render(); updatePaperEstimate(); return; }
+
+    const chunks = splitNotes(raw);
+    const useFB = frontBackEl.checked;
+
+    cards = chunks.map(chunk => {
+      if (useFB) {
+        const lines = chunk.split(/\r?\n/);
+        const front = lines.shift().trim();
+        const back  = lines.join('\n').trim();
+        return { front, back };
+      }
+      return { front: chunk, back: '' };
+    });
+
+    render();
+    updatePaperEstimate();
+  }
+
+  function render() {
+    cardGrid.innerHTML = '';
+    countEl.textContent = cards.length + ' card' + (cards.length === 1 ? '' : 's');
+    cards.forEach((c, i) => {
+      const div = document.createElement('div');
+      div.className = 'card';
+      div.innerHTML =
+        '<div class="front">' + escapeHtml(c.front) + '</div>' +
+        (c.back ? '<div class="back">' + escapeHtml(c.back) + '</div>' : '') +
+        '<span class="num">' + (i + 1) + '</span>';
+      cardGrid.appendChild(div);
+    });
+  }
+
+  function updatePaperEstimate() {
+    const n = cards.length;
+    if (!n) { paperEstEl.textContent = ''; return; }
+    const per = cardsPerSheet();
+    const mode = currentPrintMode();
+    const sheets = Math.ceil(n / per);
+    if (mode === 'single') {
+      paperEstEl.textContent =
+        'Estimated paper (single-sided): ' + sheets + ' sheet' +
+        (sheets === 1 ? '' : 's') + ' — ' + per + ' cards per sheet';
+    } else {
+      paperEstEl.textContent =
+        'Estimated paper (double-sided): ' + sheets + ' sheet' +
+        (sheets === 1 ? '' : 's') + ' (' + sheets + ' front + ' +
+        sheets + ' back pages) — ' + per + ' cards per sheet';
+    }
+  }
+
+  function syncModeUI() {
+    const isDuplex = currentPrintMode() === 'duplex';
+    includeFrontsOnBack.disabled = !isDuplex;
+    if (!isDuplex) includeFrontsOnBack.checked = false;
+    manualDuplexEl.disabled = !isDuplex;
+    updatePaperEstimate();
+  }
+
+  // ---------- print layout ----------
+  // options.testSheet = 1-based index; when set, only that sheet is emitted,
+  // and a TEST banner is drawn on it.
+  function buildPrintLayout(options) {
+    const opts = options || {};
+    printArea.innerHTML = '';
+    if (!cards.length) return;
+
+    const per = cardsPerSheet();
+    const mode = currentPrintMode();
+    const paper = paperSize();
+    const showInfo = showPageInfoEl.checked;
+    const layoutClass = 'layout-' + per;
+    const totalSheets = Math.ceil(cards.length / per);
+
+    let sheetFrom = 0, sheetTo = totalSheets - 1;
+    let isTest = false;
+    if (opts.testSheet != null) {
+      const t = Math.max(1, Math.min(opts.testSheet, totalSheets)) - 1;
+      sheetFrom = sheetTo = t;
+      isTest = true;
+    }
+
+    const makePage = () => {
+      const p = document.createElement('div');
+      p.className = 'print-page ' + paper + ' ' + layoutClass;
+      return p;
+    };
+
+    const addHeader = (page, text) => {
+      if (!showInfo) return;
+      const h = document.createElement('div');
+      h.className = 'print-header';
+      h.textContent = text;
+      page.appendChild(h);
+    };
+
+    const addTestBanner = (page, text) => {
+      const b = document.createElement('div');
+      b.className = 'test-banner';
+      b.textContent = text;
+      page.appendChild(b);
+    };
+
+    const makeCard = (contentHtml, cardNum, pairLabel) => {
+      const c = document.createElement('div');
+      c.className = 'print-card';
+      let html = escapeHtml(contentHtml);
+      if (showInfo) {
+        html += '<span class="pnum">#' + cardNum + '</span>';
+        if (pairLabel) html += '<span class="pnum-pair">' + pairLabel + '</span>';
+      }
+      c.innerHTML = html;
+      return c;
+    };
+
+    if (mode === 'single') {
+      for (let s = sheetFrom; s <= sheetTo; s++) {
+        const page = makePage();
+        if (isTest) addTestBanner(page, 'TEST PRINT — verify grid & margins before printing the rest');
+        if (showInfo) {
+          const start = s * per + 1;
+          const end = Math.min((s + 1) * per, cards.length);
+          addHeader(page,
+            'SHEET ' + (s + 1) + ' / ' + totalSheets +
+            ' · SINGLE-SIDED · CARDS ' + start + '–' + end +
+            (isTest ? ' · TEST' : ''));
+        }
+        cards.slice(s * per, s * per + per).forEach((c, j) => {
+          const idx = s * per + j;
+          const content = c.back
+            ? c.front + '\n\n— — —\n\n' + c.back
+            : c.front;
+          page.appendChild(makeCard(content, idx + 1, ''));
+        });
+        printArea.appendChild(page);
+      }
+      return;
+    }
+
+    // double-sided
+    for (let s = sheetFrom; s <= sheetTo; s++) {
+      const chunk = cards.slice(s * per, s * per + per);
+      const start = s * per + 1;
+      const end = Math.min((s + 1) * per, cards.length);
+
+      // FRONT
+      const frontPage = makePage();
+      if (isTest) addTestBanner(frontPage, 'TEST PRINT — FRONT of sheet ' + (s + 1) + ' of ' + totalSheets);
+      if (showInfo) {
+        addHeader(frontPage,
+          'SHEET ' + (s + 1) + ' / ' + totalSheets + ' — FRONT' +
+          ' · CARDS ' + start + '–' + end +
+          (manualDuplexEl.checked ? ' · keep in this order' : '') +
+          (isTest ? ' · TEST' : ''));
+      }
+      chunk.forEach((c, j) => {
+        const idx = s * per + j;
+        frontPage.appendChild(makeCard(c.front, idx + 1, 'F'));
+      });
+      printArea.appendChild(frontPage);
+
+      // BACK
+      const backPage = makePage();
+      if (isTest) addTestBanner(backPage, 'TEST PRINT — BACK of sheet ' + (s + 1) + ' of ' + totalSheets + ' · check alignment behind the fronts');
+      if (showInfo) {
+        addHeader(backPage,
+          'SHEET ' + (s + 1) + ' / ' + totalSheets + ' — BACK' +
+          ' · CARDS ' + start + '–' + end +
+          (manualDuplexEl.checked
+            ? ' · flip the printed sheet and feed it back in (long edge)'
+            : '') +
+          (isTest ? ' · TEST' : ''));
+      }
+      chunk.forEach((c, j) => {
+        const idx = s * per + j;
+        let content = c.back || '';
+        if (includeFrontsOnBack.checked && c.front) {
+          content = (content ? content + '\n\n' : '') + '(' + c.front + ')';
+        }
+        backPage.appendChild(makeCard(content, idx + 1, 'B'));
+      });
+      printArea.appendChild(backPage);
+    }
+  }
+
+  // ---------- CSV ----------
+  function exportCSV() {
+    if (!cards.length) buildCards();
+    if (!cards.length) { alert('No cards to export.'); return; }
+    const rows = [['Front', 'Back']];
+    cards.forEach(c => rows.push([c.front, c.back || '']));
+    const csv = rows.map(r =>
+      r.map(field => {
+        const s = String(field);
+        if (/[",\r\n]/.test(s)) return '"' + s.replace(/"/g, '""') + '"';
+        return s;
+      }).join(',')
+    ).join('\r\n');
+    const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0, 10);
+    a.href = url;
+    a.download = 'notecards-' + stamp + '.csv';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  // ---------- events ----------
+  splitModeEl.addEventListener('change', () => {
+    customDelim.style.display = splitModeEl.value === 'custom' ? 'inline-block' : 'none';
+    scheduleAutoSave();
+  });
+  printModeEls.forEach(r => r.addEventListener('change', () => { syncModeUI(); scheduleAutoSave(); }));
+  includeFrontsOnBack.addEventListener('change', () => { updatePaperEstimate(); scheduleAutoSave(); });
+  cardsPerSheetEl.addEventListener('change', () => { updatePaperEstimate(); scheduleAutoSave(); });
+  paperSizeEl.addEventListener('change', () => { updatePaperEstimate(); scheduleAutoSave(); });
+  showPageInfoEl.addEventListener('change', scheduleAutoSave);
+  manualDuplexEl.addEventListener('change', scheduleAutoSave);
+  frontBackEl.addEventListener('change', () => { updatePaperEstimate(); scheduleAutoSave(); });
+  autoSaveEl.addEventListener('change', () => {
+    if (autoSaveEl.checked) saveToStorage();
+    scheduleAutoSave();
+  });
+  notesEl.addEventListener('input', scheduleAutoSave);
+  customDelim.addEventListener('input', scheduleAutoSave);
+
+  document.getElementById('buildBtn').addEventListener('click', buildCards);
+  document.getElementById('printBtn').addEventListener('click', () => {
+    if (!cards.length) buildCards();
+    buildPrintLayout({});
+    window.print();
+  });
+  document.getElementById('testPrintBtn').addEventListener('click', () => {
+    if (!cards.length) buildCards();
+    if (!cards.length) { alert('Add some notes first.'); return; }
+    buildPrintLayout({ testSheet: 1 });
+    window.print();
+  });
+  document.getElementById('csvBtn').addEventListener('click', exportCSV);
+
+  document.getElementById('saveNowBtn').addEventListener('click', saveToStorage);
+  document.getElementById('exportSessionBtn').addEventListener('click', exportSessionFile);
+  document.getElementById('importSessionBtn').addEventListener('click', () => importFile.click());
+  importFile.addEventListener('change', () => {
+    if (importFile.files && importFile.files[0]) {
+      importSessionFile(importFile.files[0]);
+      importFile.value = '';
+    }
+  });
+  document.getElementById('clearSessionBtn').addEventListener('click', () => {
+    if (!confirm('Clear the saved session from this browser? Your notes in the editor will not change.')) return;
+    try {
+      localStorage.removeItem(STORAGE_KEY);
+      flashSession('Saved session cleared from this browser.');
+    } catch (e) {
+      flashSession('Could not clear: ' + e.message, true);
+    }
+  });
+
+  // ---------- init ----------
+  const hadSaved = loadFromStorage();
+  syncModeUI();
+  if (!hadSaved) render();
+  if (hadSaved) flashSession('Restored your last session.');
+})();
+</script>
+</body>
+</html>
